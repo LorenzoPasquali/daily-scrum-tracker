@@ -174,5 +174,10 @@ app.delete('/api/task', authenticateToken, async (req, res) => {
   res.sendStatus(204);
 });
 
+//healthcheck
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor de API rodando na porta ${PORT}`));
