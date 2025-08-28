@@ -1,0 +1,7 @@
+.date-input-dark {
+  color-scheme: dark;
+}
+
+.date-input-dark::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}

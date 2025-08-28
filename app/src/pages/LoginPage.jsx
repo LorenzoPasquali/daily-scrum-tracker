@@ -1,38 +1,20 @@
-// src/pages/LoginPage.jsx
-
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import Particles from "react-tsparticles";
-import { loadSlim } from "tsparticles-slim";
+import ParticlesBackground from '../components/ParticlesBackground';
 
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Container from 'react-bootstrap/Container';
-import Card from 'react-bootstrap/Card';
 import Alert from 'react-bootstrap/Alert';
-import { Google } from 'react-bootstrap-icons';
+
+import googleLogo from '../assets/google-icon.svg';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-
-  // Partículas sutis para o fundo
-  const particlesInit = useCallback(async (engine) => { await loadSlim(engine); }, []);
-  const particlesOptions = {
-    background: { color: { value: "#0d1117" } },
-    fpsLimit: 60,
-    particles: {
-      color: { value: "#a78bfa" },
-      move: { enable: true, speed: 0.5 },
-      number: { density: { enable: true, area: 800 }, value: 20 }, // Número bem reduzido de partículas
-      opacity: { value: 0.2 },
-      size: { value: { min: 1, max: 3 } },
-    },
-    detectRetina: true,
-  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -58,34 +40,49 @@ export default function LoginPage() {
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      <Particles id="tsparticles-login" init={particlesInit} options={particlesOptions} style={{ position: 'absolute', zIndex: 0 }}/>
-      <Container fluid className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-        <Card bg="dark" text="light" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'rgba(22, 27, 34, 0.85)', backdropFilter: 'blur(10px)' }}>
-          <Card.Body>
-            <h1 className="text-center mb-4">Entrar</h1>
-            <Form onSubmit={handleLogin}>
-              <Form.Group className="mb-3" controlId="formBasicEmail">
-                <Form.Label>Email</Form.Label>
-                <Form.Control type="email" placeholder="Seu email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#30363d' }} />
-              </Form.Group>
-              <Form.Group className="mb-3" controlId="formBasicPassword">
-                <Form.Label>Senha</Form.Label>
-                <Form.Control type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#30363d' }} />
-              </Form.Group>
-              {error && <Alert variant="danger">{error}</Alert>}
-              <div className="d-grid gap-2">
-                <Button variant="primary" type="submit">Entrar</Button>
-                <hr />
-                <Button variant="outline-light" onClick={handleGoogleLogin}>
-                  <Google className="me-2" /> Entrar com Google
-                </Button>
+      <ParticlesBackground variant="login" />
+      <Container fluid className="d-flex flex-column align-items-center justify-content-center text-light" style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
+        
+        <h1 className="text-center mb-4 fs-3 fw-normal">Entrar no DailyTracker</h1>
+        
+        <div style={{ width: '100%', maxWidth: '350px', padding: '20px', backgroundColor: 'rgba(22, 27, 34, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid #252b31ff', borderRadius: '6px' }}>
+          <Form onSubmit={handleLogin}>
+            <Form.Group className="mb-3" controlId="formBasicEmail">
+              <Form.Label>Nome de usuário ou email</Form.Label>
+              <Form.Control type="email" placeholder="" value={email} onChange={(e) => setEmail(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#252b31ff' }} />
+            </Form.Group>
+            <Form.Group className="mb-3" controlId="formBasicPassword">
+              <div className="d-flex justify-content-between align-items-center">
+                <Form.Label className="mb-0">Senha</Form.Label>
               </div>
-            </Form>
-            <div className="text-center mt-3">
-              <Link to="/register" className="text-light">Não tem uma conta? Registre-se</Link>
+              <Form.Control type="password" placeholder="" value={password} onChange={(e) => setPassword(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#252b31ff' }} />
+            </Form.Group>
+            {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+            <div className="d-grid gap-2">
+              <Button variant="success" type="submit" className="py-2">Entrar</Button>
             </div>
-          </Card.Body>
-        </Card>
+          </Form>
+        </div>
+
+        <div className="text-center mt-3" style={{ maxWidth: '350px', width: '100%' }}>
+            <div className="d-flex align-items-center my-3">
+                <hr className="flex-grow-1 border-secondary" />
+                <span className="mx-2 text-secondary">ou</span>
+                <hr className="flex-grow-1 border-secondary" />
+            </div>
+            <Button 
+                variant="outline-light" 
+                onClick={handleGoogleLogin} 
+                className="w-100 py-2 d-flex align-items-center justify-content-center"
+            >
+                <img src={googleLogo} alt="Google" style={{ width: 18, marginRight: 8 }} />
+                Continuar com Google
+            </Button>
+        </div>
+
+        <div className="text-center mt-4 p-3 border border-secondary" style={{ maxWidth: '350px', width: '100%', backgroundColor: 'transparent', borderRadius: '6px'}}>
+          Novo no DailyTracker? <Link to="/register" className="text-primary text-decoration-none">Crie uma conta</Link>
+        </div>
       </Container>
     </div>
   );

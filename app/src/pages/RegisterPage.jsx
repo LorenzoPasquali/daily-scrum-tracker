@@ -1,95 +1,162 @@
-// src/pages/RegisterPage.jsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import Particles from "react-tsparticles";
-import { loadSlim } from "tsparticles-slim";
+import { Google } from 'react-bootstrap-icons';
 
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
-import Container from 'react-bootstrap/Container';
-import Card from 'react-bootstrap/Card';
 import Alert from 'react-bootstrap/Alert';
+import Container from 'react-bootstrap/Container';
+
+import ParticlesBackground from '../components/ParticlesBackground';
+import googleLogo from '../assets/google-icon.svg';
 
 export default function RegisterPage() {
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
-
-  // Partículas sutis para o fundo
-  const particlesInit = useCallback(async (engine) => { await loadSlim(engine); }, []);
-  const particlesOptions = {
-    background: { color: { value: "#0d1117" } },
-    fpsLimit: 60,
-    particles: {
-      color: { value: "#a78bfa" },
-      move: { enable: true, speed: 0.5 },
-      number: { density: { enable: true, area: 800 }, value: 20 },
-      opacity: { value: 0.2 },
-      size: { value: { min: 1, max: 3 } },
-    },
-    detectRetina: true,
-  };
-
-  useEffect(() => {
-    if (location.state?.prefilledEmail) {
-      setEmail(location.state.prefilledEmail);
-    }
-  }, [location.state]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
-    if (!email || !password) {
+    if (!email || !password || !confirmPassword) {
       setError('Por favor, preencha todos os campos.');
       return;
     }
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
     try {
       await api.post('/auth/register', { email, password });
-      setSuccess('Usuário criado com sucesso! Redirecionando para o login...');
+      const loginResponse = await api.post('/auth/login', { email, password });
+      if (loginResponse.data?.token) {
+        localStorage.setItem('authToken', loginResponse.data.token);
+      }
+      setSuccess('Conta criada com sucesso! Redirecionando...');
       setTimeout(() => {
-        navigate('/login');
+        navigate('/dashboard');
       }, 2000);
     } catch (err) {
-      setError('Este email já está em uso. Tente outro.');
+      setError('Erro ao registrar. O email pode já estar em uso.');
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:3000/auth/google';
+  };
+
+  const darkInputStyle = { 
+    backgroundColor: '#0d1117', 
+    color: 'white', 
+    borderColor: '#252b31ff' 
+  };
+
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      <Particles id="tsparticles-register" init={particlesInit} options={particlesOptions} style={{ position: 'absolute', zIndex: 0 }} />
-      <Container fluid className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-        <Card bg="dark" text="light" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'rgba(22, 27, 34, 0.85)', backdropFilter: 'blur(10px)' }}>
-          <Card.Body>
-            <h1 className="text-center mb-4">Criar Conta</h1>
+    <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+      <ParticlesBackground variant="home" />
+
+      {/* tela mobile */}
+      <div className="d-block d-md-none">
+        <Container fluid className="d-flex flex-column align-items-center justify-content-center text-light" style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
+          <h1 className="text-center mb-4 fs-3 fw-normal">Criar conta no DailyTracker</h1>
+          <div style={{ width: '100%', maxWidth: '350px', padding: '20px', backgroundColor: 'rgba(22, 27, 34, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid #252b31ff', borderRadius: '6px' }}>
             <Form onSubmit={handleRegister}>
-              <Form.Group className="mb-3" controlId="formBasicEmail">
+              <Form.Group className="mb-3">
                 <Form.Label>Email</Form.Label>
-                <Form.Control type="email" placeholder="Seu email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#30363d' }} />
+                <Form.Control type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={darkInputStyle} />
               </Form.Group>
-              <Form.Group className="mb-3" controlId="formBasicPassword">
+              <Form.Group className="mb-3">
                 <Form.Label>Senha</Form.Label>
-                <Form.Control type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} style={{ backgroundColor: '#0d1117', color: 'white', borderColor: '#30363d' }} />
+                <Form.Control type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={darkInputStyle} />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Confirmar Senha</Form.Label>
+                <Form.Control type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={darkInputStyle} />
               </Form.Group>
               
               {error && <Alert variant="danger">{error}</Alert>}
               {success && <Alert variant="success">{success}</Alert>}
-
+              
               <div className="d-grid gap-2">
-                <Button variant="success" type="submit">Registrar</Button>
+                <Button variant="success" type="submit">Criar conta</Button>
               </div>
             </Form>
-            <div className="text-center mt-3">
-              <Link to="/login" className="text-light">Já tem uma conta? Faça login</Link>
+          </div>
+
+          <div className="text-center mt-3" style={{ maxWidth: '350px', width: '100%' }}>
+            <div className="d-flex align-items-center my-3">
+              <hr className="flex-grow-1 border-secondary" />
+              <span className="mx-2 text-secondary">ou</span>
+              <hr className="flex-grow-1 border-secondary" />
             </div>
-          </Card.Body>
-        </Card>
-      </Container>
+            <Button variant="outline-light" onClick={handleGoogleLogin} className="w-100 py-2">
+              <Google className="me-2" /> Continuar com Google
+            </Button>
+          </div>
+
+          <div className="text-center mt-4 p-3 border border-secondary" style={{ maxWidth: '350px', width: '100%', borderRadius: '6px'}}>
+            Já tem uma conta? <Link to="/login" className="text-primary text-decoration-none">Entrar</Link>
+          </div>
+        </Container>
+      </div>
+
+      {/* Layout original com duas colunas, visível apenas em telas médias ou maiores */}
+      <div className="d-none d-md-flex" style={{ position: 'relative', zIndex: 1, height: '100vh', width: '100%' }}>
+        <div className="flex-column text-start text-light" style={{ flex: 1, padding: '3rem', justifyContent: 'flex-center', paddingTop: '10rem' }}>
+          <h1 className="fw-bold fs-2 mb-2">Crie sua conta de graça</h1>
+          <p className="fs-6 mb-0" style={{ color: '#b0b0b0' }}>
+            Organize suas Dailies, simplifique seu dia e mantenha tudo sob controle.
+          </p>
+        </div>
+        
+        <div className="d-flex flex-column justify-content-center align-items-center" style={{ flex: 1, background: '#ffffff', minHeight: '100vh', padding: '2rem' }}>
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            <Form onSubmit={handleRegister}>
+              <div className="text-center mb-3">
+                <p className="fw-semibold text-dark text-start mb-1 fs-5">Inscreva-se no DailyTracker</p>
+              </div>
+              <Button variant="outline-secondary" onClick={handleGoogleLogin} className="w-100 d-flex align-items-center justify-content-center mb-3" style={{ padding: '0.6rem' }}>
+                <img src={googleLogo} alt="Google" style={{ width: 18, marginRight: 8 }} />
+                Registrar com Google
+              </Button>
+              <div className="d-flex align-items-center my-3">
+                <hr className="flex-grow-1" />
+                <span className="mx-2 text-muted" style={{ fontSize: '0.8em' }}>ou</span>
+                <hr className="flex-grow-1" />
+              </div>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-dark fw-semibold" style={{ fontSize: '0.9em' }}>Email*</Form.Label>
+                <Form.Control type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }} />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-dark fw-semibold" style={{ fontSize: '0.9em' }}>Senha*</Form.Label>
+                <Form.Control type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }} />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label className="text-dark fw-semibold" style={{ fontSize: '0.9em' }}>Confirmar Senha</Form.Label>
+                <Form.Control type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }} />
+              </Form.Group>
+              
+              {error && <Alert variant="danger" className="mt-3 p-2 text-center" style={{ fontSize: '0.9em' }}>{error}</Alert>}
+              {success && <Alert variant="success" className="mt-3 p-2 text-center" style={{ fontSize: '0.9em' }}>{success}</Alert>}
+              
+              <div className="d-grid gap-2 mt-4">
+                <Button variant="success" type="submit" className="py-2">Criar conta</Button>
+              </div>
+            </Form>
+            <div className="mt-4 p-3 rounded" style={{ border: '1px solid #d0d7de', fontSize: '0.9em', background: '#fff' }}>
+              <p className="text-muted mb-0 text-center">Já tem uma conta? <Link to="/login" className="text-decoration-none">Entrar</Link></p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

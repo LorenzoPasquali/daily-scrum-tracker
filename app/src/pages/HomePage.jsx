@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
 
@@ -7,13 +7,8 @@ import Button from 'react-bootstrap/Button';
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
-import Form from 'react-bootstrap/Form';
-import InputGroup from 'react-bootstrap/InputGroup';
 
 export default function HomePage() {
-  const [email, setEmail] = useState('');
-  const navigate = useNavigate();
-
   const particlesInit = useCallback(async (engine) => {
     await loadSlim(engine);
   }, []);
@@ -22,7 +17,7 @@ export default function HomePage() {
     background: {
       color: { value: "#0d1117" },
     },
-    fpsLimit: 60,
+    fpsLimit: 144,
     interactivity: {
       events: {
         onHover: { enable: true, mode: "repulse" },
@@ -33,7 +28,7 @@ export default function HomePage() {
       },
     },
     particles: {
-      color: { value: "#a78bfa" },
+      color: { value: "#5f4a9eff" },
       links: {
         color: "#a78bfa",
         distance: 150,
@@ -58,13 +53,6 @@ export default function HomePage() {
       size: { value: { min: 1, max: 3 } },
     },
     detectRetina: true,
-  };
-
-  const handleEmailSignup = (e) => {
-    e.preventDefault();
-    if (email) {
-      navigate('/register', { state: { prefilledEmail: email } });
-    }
   };
 
   return (
@@ -94,11 +82,10 @@ export default function HomePage() {
         pointerEvents: 'none'
       }} />
 
-      {/* Conteúdo da página (Navbar e Hero Section) */}
       <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Navbar variant="dark" expand="lg" style={{ backgroundColor: 'transparent' }}>
-          <Container>
-            <Navbar.Brand as={Link} to="/" className="fw-bold fs-4">ScrumDaily</Navbar.Brand>
+          <Container fluid className="px-4"> 
+            <Navbar.Brand as={Link} to="/" className="fw-bold fs-4">DailyTracker</Navbar.Brand>
             <Navbar.Toggle aria-controls="basic-navbar-nav" />
             <Navbar.Collapse id="basic-navbar-nav">
               <Nav className="ms-auto">
@@ -116,24 +103,16 @@ export default function HomePage() {
             Organize suas Dailies. Simplifique seu dia.
           </h1>
           <p className="lead mt-3 mb-4" style={{ maxWidth: '700px', color: '#adb5bd' }}>
-            O Scrum Daily Tracker ajuda você a registrar suas tarefas diárias de forma rápida e objetiva, para que você esteja sempre preparado para a próxima reunião.
+            O Daily Scrum Tracker ajuda você a registrar suas tarefas diárias de forma rápida e objetiva, para que você esteja sempre preparado para a próxima reunião.
           </p>
           
-          <Form onSubmit={handleEmailSignup} className="d-flex flex-column flex-md-row justify-content-center align-items-center mb-3" style={{ maxWidth: '600px', width: '100%' }}>
-              <InputGroup className="mb-2 mb-md-0 me-md-2" style={{ maxWidth: '300px' }}>
-                  <Form.Control
-                      type="email"
-                      placeholder="Seu email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="py-2"
-                  />
-              </InputGroup>
-              <Button type="submit" variant="success" size="lg" className="mb-2 mb-md-0 me-md-2">
-                  Cadastrar-se
-              </Button>
-          </Form>
-          <Button as={Link} to="/login" variant="link" className="text-decoration-none text-light mt-2">
+          <div className="d-flex justify-content-center mb-2">
+            <Button as={Link} to="/register" variant="outline-light">
+                Cadastrar-se
+            </Button>
+          </div>
+          
+          <Button as={Link} to="/login" variant="link" className="text-decoration-none text-light" style={{ fontSize: '0.8em', opacity: 0.5 }}>
               Já tenho uma conta
           </Button>
         </Container>
