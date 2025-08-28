@@ -9,6 +9,8 @@ import passport from 'passport';
 import './passport-setup.js';
 
 const app = express();
+app.set('trust proxy', 1);
+
 const prisma = new PrismaClient();
 
 if (!process.env.JWT_SECRET) {
