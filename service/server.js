@@ -11,10 +11,14 @@ import './passport-setup.js';
 const app = express();
 const prisma = new PrismaClient();
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL_ERROR: JWT_SECRET is not defined in the environment variables.');
+}
+
 app.use(express.json());
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }));
 
@@ -55,7 +59,7 @@ app.post('/auth/login', async (req, res) => {
     return res.status(401).json({ message: "Credenciais inválidas." });
   }
 
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'SEGREDO_SUPER_SECRETO', { expiresIn: '1d' });
+  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
   res.json({ token });
 });
 
@@ -66,13 +70,13 @@ app.get('/auth/google', passport.authenticate('google'));
 app.get(
   '/auth/google/callback',
   passport.authenticate('google', {
-    failureRedirect: 'http://localhost:5173/login?error=google-auth-failed',
+    failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login?error=google-auth-failed`,
   }),
   (req, res) => {
     const user = req.user;
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || 'SEGREDO_SUPER_SECRETO', { expiresIn: '1d' });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-    res.redirect(`http://localhost:5173/login/success?token=${token}`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login/success?token=${token}`);
   }
 );
 
@@ -83,7 +87,7 @@ const authenticateToken = (req, res, next) => {
   
   if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.JWT_SECRET || 'SEGREDO_SUPER_SECRETO', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.userId = user.userId;
     next();
