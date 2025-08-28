@@ -137,8 +137,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
-    navigate('/home');
-    window.location.reload();
+    navigate('/');
   };
 
   const darkFormStyle = { backgroundColor: '#21262d', color: 'white', borderColor: '#444' };
