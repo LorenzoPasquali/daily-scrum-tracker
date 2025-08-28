@@ -28,7 +28,6 @@ export default function LoginPage() {
       const { token } = response.data;
       localStorage.setItem('authToken', token);
       navigate('/dashboard');
-      window.location.reload();
     } catch (err) {
       setError('Credenciais inválidas. Por favor, tente novamente.');
     }
