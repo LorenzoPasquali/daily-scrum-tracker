@@ -96,9 +96,10 @@ export default function RegisterPage() {
               <span className="mx-2 text-secondary">ou</span>
               <hr className="flex-grow-1 border-secondary" />
             </div>
-            <Button variant="outline-light" onClick={handleGoogleLogin} className="w-100 py-2">
-              <Google className="me-2" /> Continuar com Google
-            </Button>
+          <Button variant="outline-light" onClick={handleGoogleLogin} className="w-100 py-2 d-flex align-items-center justify-content-center">
+            <img src={googleLogo} alt="Google" style={{ width: 18, marginRight: 8 }} />
+            Registrar com Google
+          </Button>
           </div>
 
           <div className="text-center mt-4 p-3 border border-secondary" style={{ maxWidth: '350px', width: '100%', borderRadius: '6px'}}>
