@@ -20,7 +20,7 @@ if (!process.env.JWT_SECRET) {
 app.use(express.json());
 
 app.use(cors({
-  origin: 'https://daily-scrum-tracker.vercel.app',
+  origin: ['https://daily-scrum-tracker.vercel.app', 'http://localhost:5173'],
   credentials: true,
 }));
 

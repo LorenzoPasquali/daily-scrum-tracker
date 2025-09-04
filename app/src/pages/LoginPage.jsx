@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import ParticlesBackground from '../components/ParticlesBackground';
@@ -15,6 +15,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+    useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      const { token, error } = event.data;
+
+      if (token) {
+        localStorage.setItem('authToken', token);
+        navigate('/dashboard');
+      } else if (error) {
+        setError('Falha na autenticação com o Google.');
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,7 +57,17 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = `${api.defaults.baseURL}/auth/google`;
+    const width = 600;
+    const height = 700;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    const url = `${api.defaults.baseURL}/auth/google`;
+
+    window.open(
+      url,
+      'googleLogin',
+      `width=${width},height=${height},top=${top},left=${left}`
+    );
   };
 
   return (
