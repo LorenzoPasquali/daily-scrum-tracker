@@ -8,18 +8,50 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   password  String?
-  googleId  String?  @unique
-  entries   Entry[]
+  googleId  String?   @unique
+  tasks     Task[]
+  projects  Project[]
 }
 
-model Entry {
-  id     Int      @id @default(autoincrement())
-  date   String
-  did    Json
-  will   Json
-  userId Int
-  user   User     @relation(fields: [userId], references: [id])
+model Project {
+  id        Int      @id @default(autoincrement())
+  name      String
+  color     String   @default("#8b949e")
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  
+  tasks     Task[]
+  taskTypes TaskType[] 
+}
+
+model TaskType {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  projectId Int
+  project   Project @relation(fields: [projectId], references: [id])
+
+  tasks Task[]
+}
+
+model Task {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  status      String   @default("PLANNED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+
+  projectId   Int?
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  taskTypeId  Int?
+  taskType    TaskType? @relation(fields: [taskTypeId], references: [id])
 }
