@@ -1,7 +1,42 @@
 .date-input-dark {
   color-scheme: dark;
 }
-
 .date-input-dark::-webkit-calendar-picker-indicator {
   filter: invert(1);
+}
+.sidebar-accordion .accordion-item,
+.sidebar-accordion .accordion-header button {
+  background-color: transparent !important;
+  color: #8b949e !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.sidebar-accordion .accordion-header button:hover {
+  background-color: #1c2128 !important;
+}
+.sidebar-accordion .accordion-body {
+  padding: 0 0 0 1rem;
+}
+.nav-pills .nav-link.active {
+  border-left: 3px solid #a78bfa;
+  background-color: #1c2128 !important;
+  border-radius: 0;
+}
+.form-control:focus,
+.form-select:focus,
+.btn:focus,
+.accordion-button:focus {
+  border-color: #a78bfa !important;
+  box-shadow: 0 0 0 0.1rem rgba(167, 139, 250, 0.25) !important;
+  outline: none !important;
+}
+.form-control {
+  background-color: #21262d !important;
+  color: white !important;
+  border-color: #30363d !important;
+}
+
+.modal-transparent .modal-content {
+  background-color: transparent;
+  border: none;
 }

@@ -36,7 +36,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// --- ROTAS DE AUTENTICAÇÃO ---
 app.post('/auth/register', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -65,8 +64,6 @@ app.post('/auth/login', async (req, res) => {
   res.json({ token });
 });
 
-// --- ROTAS DE AUTENTICAÇÃO COM GOOGLE (OAuth 2.0) ---
-
 app.get('/auth/google', passport.authenticate('google'));
 
 app.get(
@@ -77,12 +74,10 @@ app.get(
   (req, res) => {
     const user = req.user;
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
-
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/login/success?token=${token}`);
   }
 );
 
-// Este middleware será usado para proteger as rotas da API
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -96,85 +91,156 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-
-// --- ROTAS DA API DE TAREFAS ---
-
-app.get('/api/entries', authenticateToken, async (req, res) => {
-  const entries = await prisma.entry.findMany({
+app.get('/api/tasks', authenticateToken, async (req, res) => {
+  const tasks = await prisma.task.findMany({
     where: { userId: req.userId },
-    orderBy: { date: 'desc' }
+    orderBy: { createdAt: 'desc' }
   });
-  res.json(entries);
+  res.json(tasks);
 });
 
-app.post('/api/task', authenticateToken, async (req, res) => {
-    const { date, type, text, time } = req.body;
-    const userId = req.userId;
+app.post('/api/tasks', authenticateToken, async (req, res) => {
+  const { title, description, status, projectId, taskTypeId } = req.body;
+  const userId = req.userId;
 
-    let entry = await prisma.entry.findFirst({ where: { date, userId } });
-    const task = { id: Date.now(), text, time };
+  if (!title || !status) {
+    return res.status(400).json({ message: 'Título e status são obrigatórios.' });
+  }
 
-    if (!entry) {
-        const initialDid = type === 'did' ? [task] : [];
-        const initialWill = type === 'will' ? [task] : [];
-        entry = await prisma.entry.create({
-            data: { date, userId, did: initialDid, will: initialWill }
-        });
-    } else {
-        const tasks = entry[type] || [];
-        tasks.push(task);
-        await prisma.entry.update({
-            where: { id: entry.id },
-            data: { [type]: tasks }
-        });
+  try {
+    const newTask = await prisma.task.create({
+      data: {
+        title,
+        description,
+        status,
+        userId,
+        projectId,
+        taskTypeId,
+      }
+    });
+    res.status(201).json(newTask);
+  } catch (error) {
+    console.error("Erro ao criar tarefa:", error);
+    res.status(500).json({ message: 'Erro interno ao criar tarefa.' });
+  }
+});
+
+app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { title, description, status, projectId, taskTypeId } = req.body;
+  const userId = req.userId;
+
+  if (!title || !status) {
+    return res.status(400).json({ message: 'Título e status são obrigatórios.' });
+  }
+
+  try {
+    const updatedTask = await prisma.task.update({
+      where: {
+        id: parseInt(id),
+        userId: userId 
+      },
+      data: { title, description, status, updatedAt: new Date(), projectId, taskTypeId }
+    });
+    res.json(updatedTask);
+  } catch (error) {
+    console.error(`Erro ao atualizar tarefa ${id}:`, error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Tarefa não encontrada ou não pertence ao usuário.' });
     }
-    res.status(201).json(task);
+    res.status(500).json({ message: 'Erro interno ao atualizar tarefa.' });
+  }
 });
 
-app.put('/api/task', authenticateToken, async (req, res) => {
-  const { date, type, id, text } = req.body;
+app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
   const userId = req.userId;
 
-  const entry = await prisma.entry.findFirst({ where: { date, userId } });
-  if (!entry) return res.status(404).json({ message: 'Registro não encontrado' });
-
-  const arrKey = type === 'did' ? 'did' : 'will';
-  const tasks = entry[arrKey] || [];
-  
-  const taskIndex = tasks.findIndex(t => t.id === id);
-  if (taskIndex === -1) return res.status(404).json({ message: 'Tarefa não encontrada' });
-
-  tasks[taskIndex].text = text;
-
-  await prisma.entry.update({
-    where: { id: entry.id },
-    data: { [arrKey]: tasks }
-  });
-
-  res.json(tasks[taskIndex]);
+  try {
+    await prisma.task.delete({
+      where: {
+        id: parseInt(id),
+        userId: userId,
+      }
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error(`Erro ao deletar tarefa ${id}:`, error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Tarefa não encontrada ou não pertence ao usuário.' });
+    }
+    res.status(500).json({ message: 'Erro interno ao deletar tarefa.' });
+  }
 });
 
-app.delete('/api/task', authenticateToken, async (req, res) => {
-  const { date, type, id } = req.body;
-  const userId = req.userId;
-
-  const entry = await prisma.entry.findFirst({ where: { date, userId } });
-  if (!entry) return res.status(404).json({ message: 'Registro não encontrado' });
-
-  const arrKey = type === 'did' ? 'did' : 'will';
-  let tasks = entry[arrKey] || [];
-
-  const updatedTasks = tasks.filter(t => t.id !== id);
-
-  await prisma.entry.update({
-    where: { id: entry.id },
-    data: { [arrKey]: updatedTasks }
+app.get('/api/projects', authenticateToken, async (req, res) => {
+  const projects = await prisma.project.findMany({
+    where: { userId: req.userId },
+    include: { taskTypes: true }, 
+    orderBy: { name: 'asc' }
   });
-
-  res.sendStatus(204);
+  res.json(projects);
 });
 
-//healthcheck
+app.put('/api/projects/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, color } = req.body;
+
+  try {
+    const updatedProject = await prisma.project.update({
+      where: { id: parseInt(id), userId: req.userId },
+      data: { name, color }
+    });
+    res.json(updatedProject);
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Projeto não encontrado.' });
+    }
+    res.status(500).json({ message: 'Erro ao atualizar projeto.' });
+  }
+});
+
+app.delete('/api/projects/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.project.delete({
+      where: { id: parseInt(id), userId: req.userId }
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Projeto não encontrado.' });
+    }
+    if (error.code === 'P2003') {
+        return res.status(400).json({ message: 'Não é possível excluir. O projeto atrelado a tarefas ou tipos de tarefa.' });
+    }
+    res.status(500).json({ message: 'Erro ao deletar projeto.' });
+  }
+});
+
+app.post('/api/projects', authenticateToken, async (req, res) => {
+  const { name, color } = req.body;
+  if (!name) return res.status(400).json({ message: 'O nome do projeto é obrigatório.' });
+
+  const newProject = await prisma.project.create({
+    data: { name, color, userId: req.userId }
+  });
+  res.status(201).json(newProject);
+});
+
+app.post('/api/task-types', authenticateToken, async (req, res) => {
+  const { name, projectId } = req.body;
+  if (!name || !projectId) {
+    return res.status(400).json({ message: 'Nome e ID do projeto são obrigatórios.' });
+  }
+
+  const newType = await prisma.taskType.create({
+    data: { name, projectId }
+  });
+  res.status(201).json(newType);
+});
+
+// Healthcheck
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
