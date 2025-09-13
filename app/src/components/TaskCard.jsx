@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Badge } from 'react-bootstrap';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash } from 'react-bootstrap-icons';
 
-export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
+export default function TaskCard({ task, projects = [], onEdit }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const descriptionRef = useRef(null);
+
   const {
     attributes,
     listeners,
@@ -14,6 +17,14 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
     isDragging,
   } = useSortable({ id: task.id });
 
+  useEffect(() => {
+    const element = descriptionRef.current;
+    if (element) {
+      const isContentTruncated = element.scrollHeight > element.clientHeight;
+      setIsTruncated(isContentTruncated);
+    }
+  }, [task.description]);
+
   const project = task.projectId ? projects.find(p => p.id === task.projectId) : null;
   const taskType = project && task.taskTypeId ? project.taskTypes.find(tt => tt.id === task.taskTypeId) : null;
   
@@ -21,7 +32,7 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: transition || 'all 0.2s ease',
     opacity: isDragging ? 0.8 : 1,
     cursor: 'grab',
     borderLeft: `4px solid ${projectColor}`, 
@@ -33,11 +44,7 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
     backgroundColor: '#161b22',
     border: '1px solid #30363d',
     borderRadius: '7px',
-  };
-
-  const handleTrashClick = (e) => {
-    e.stopPropagation();
-    onDelete(task.id);
+    transition: 'all 0.2s ease-in-out',
   };
   
   const handleCardClick = () => {
@@ -54,7 +61,13 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <Card 
         style={cardStyle} 
         className="mb-2 text-light"
@@ -62,7 +75,7 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
         <div {...listeners} onClick={handleCardClick} style={{ cursor: 'grab' }}>
           <Card.Body className="p-2">
             <div className="d-flex justify-content-between">
-              <div className="d-flex align-items-center">
+              <div className="d-flex align-items-center" style={{ minWidth: 0 }}>
                 {project && (
                   <div 
                     style={{
@@ -75,22 +88,35 @@ export default function TaskCard({ task, projects = [], onEdit, onDelete }) {
                     }}
                   />
                 )}
-                <span className="mb-0 small fw-bold">{task.title}</span>
-              </div>
-              <div>
-                <Trash size={14} className="ms-2 text-white" style={{ cursor: 'pointer' }} onClick={handleTrashClick} />
+                <span className="mb-0 small text-truncate">{task.title}</span>
               </div>
             </div>
+
+            {task.description && (
+              <div 
+                ref={descriptionRef}
+                className={isHovered && isTruncated ? '' : 'task-description-clamp'}
+                style={{
+                  fontSize: '0.85em',
+                  color: '#8b949e',
+                  whiteSpace: 'pre-line',
+                  wordBreak: 'break-word',
+                  marginTop: '0.5rem',
+                }}
+              >
+                {task.description}
+              </div>
+            )}
             
             <div className="d-flex justify-content-between align-items-center mt-2">
+                <small className="text-white-50">
+                  {formatDate(task.updatedAt)}
+                </small>
                 <div>
                     {taskType && (
                         <Badge pill bg="dark" className="fw-normal text-secondary">{taskType.name}</Badge>
                     )}
                 </div>
-                <small className="text-white-50">
-                  {formatDate(task.updatedAt)}
-                </small>
             </div>
           </Card.Body>
         </div>

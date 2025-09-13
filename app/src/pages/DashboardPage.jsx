@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragOverlay, rectIntersection, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import api from '../services/api';
 
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import AppHeader from '../components/AppHeader';
 import ParticlesBackground from '../components/ParticlesBackground';
 import Sidebar from '../components/Sidebar';
 import KanbanColumn from '../components/KanbanColumn';
@@ -13,36 +15,47 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import ProjectsModal from '../components/ProjectsModal';
 import TaskTypesModal from '../components/TaskTypesModal';
 
-import { Button, Spinner } from 'react-bootstrap';
+import { Spinner, Offcanvas, Button } from 'react-bootstrap';
+import { ArrowLeftSquare } from 'react-bootstrap-icons';
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = useState([]);
+  const [taskColumns, setTaskColumns] = useState({ PLANNED: [], DOING: [], DONE: [] });
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([])
+  const [projects, setProjects] = useState([]);
   const [activeTask, setActiveTask] = useState(null);
-
+  
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  
+  const [currentUser, setCurrentUser] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showTaskFormModal, setShowTaskFormModal] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
-  const [showTaskTypesModal, setShowTaskTypesModal] = useState(false)
-  
-  const navigate = useNavigate();
+  const [showTaskTypesModal, setShowTaskTypesModal] = useState(false);
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    navigate('/');
-  };
+  const isMobile = useMediaQuery('(max-width: 992px)');
+  const navigate = useNavigate();
+  const allTasks = useMemo(() => Object.values(taskColumns).flat(), [taskColumns]);
+
+  const handleLogout = () => { localStorage.removeItem('authToken'); navigate('/'); };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [tasksResponse, projectsResponse] = await Promise.all([
+      const [userResponse, tasksResponse, projectsResponse] = await Promise.all([
+        api.get('/api/user/me'),
         api.get('/api/tasks'),
-        api.get('/api/projects')
+        api.get('/api/projects'),
       ]);
-      setTasks(tasksResponse.data);
+      setCurrentUser(userResponse.data);
+      const newColumns = { PLANNED: [], DOING: [], DONE: [] };
+      tasksResponse.data.forEach(task => {
+        if (newColumns[task.status]) newColumns[task.status].push(task);
+      });
+      setTaskColumns(newColumns);
       setProjects(projectsResponse.data);
     } catch (error) {
       console.error("Erro ao buscar dados:", error);
@@ -52,85 +65,82 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => { fetchData(); }, []);
+  
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleOpenCreateModal = () => {
-    setTaskToEdit(null);
-    setShowTaskFormModal(true);
-  };
-  const handleOpenEditModal = (task) => {
-    setTaskToEdit(task);
-    setShowTaskFormModal(true);
-  };
-  const handleCloseTaskFormModal = () => {
-    setShowTaskFormModal(false);
-    setTaskToEdit(null);
-  };
-  const handleTaskCreated = (newTask) => {
-    setTasks(prevTasks => [newTask, ...prevTasks]);
-  };
+    const handleKeyPress = (event) => {
+      if (event.key !== 'Enter') return;
+      if (showTaskFormModal || showDeleteModal || showProjectsModal || showTaskTypesModal || showLogoutConfirm) return;
+      const activeElement = document.activeElement;
+      const isTyping = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
+      if (isTyping) return;
+      handleOpenCreateModal();
+    };
+    document.addEventListener('keydown', handleKeyPress);
+    return () => { document.removeEventListener('keydown', handleKeyPress); };
+  }, [showTaskFormModal, showDeleteModal, showProjectsModal, showTaskTypesModal, showLogoutConfirm]);
+  
+  const handleOpenCreateModal = () => { setTaskToEdit(null); setShowTaskFormModal(true); };
+  const handleOpenEditModal = (task) => { setTaskToEdit(task); setShowTaskFormModal(true); };
+  const handleCloseTaskFormModal = () => { setTaskToEdit(null); setShowTaskFormModal(false); };
+  const handleTaskCreated = (newTask) => { setTaskColumns(prev => ({ ...prev, [newTask.status]: [newTask, ...prev[newTask.status]] })); };
   const handleTaskUpdated = (updatedTask) => {
-    setTasks(prevTasks => prevTasks.map(task => (task.id === updatedTask.id ? updatedTask : task)));
+    setTaskColumns(prev => {
+      const newColumns = { ...prev };
+      Object.keys(newColumns).forEach(status => { newColumns[status] = newColumns[status].filter(t => t.id !== updatedTask.id); });
+      if (newColumns[updatedTask.status]) newColumns[updatedTask.status].unshift(updatedTask);
+      return newColumns;
+    });
   };
-  const handleOpenDeleteModal = (taskId) => {
-    setTaskToDelete(taskId);
-    setShowDeleteModal(true);
-  };
-  const handleCloseDeleteModal = () => {
-    setShowDeleteModal(false);
-    setTaskToDelete(null);
-  };
+  const handleOpenDeleteModal = (taskId) => { setTaskToDelete(taskId); setShowDeleteModal(true); };
+  const handleCloseDeleteModal = () => { setTaskToDelete(null); setShowDeleteModal(false); };
+  const handleDeleteFromModal = (taskId) => { handleCloseTaskFormModal(); setTimeout(() => handleOpenDeleteModal(taskId), 250); };
   const handleConfirmDelete = async () => {
     if (!taskToDelete) return;
     try {
       await api.delete(`/api/tasks/${taskToDelete}`);
-      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskToDelete));
+      setTaskColumns(prev => {
+        const newColumns = { ...prev };
+        Object.keys(newColumns).forEach(status => { newColumns[status] = newColumns[status].filter(t => t.id !== taskToDelete); });
+        return newColumns;
+      });
       handleCloseDeleteModal();
-    } catch (error) {
-      console.error("Erro ao deletar tarefa:", error);
-      alert('Não foi possível deletar a tarefa.');
-      handleCloseDeleteModal();
-    }
+    } catch (error) { console.error("Erro ao deletar tarefa:", error); alert('Não foi possível deletar a tarefa.'); }
   };
-
-
-  const handleDragStart = (event) => {
-    const { active } = event;
-    const task = tasks.find(t => t.id === active.id);
-    setActiveTask(task);
+  const findContainer = (taskId) => {
+    if (!taskId) return null;
+    for (const status in taskColumns) { if (taskColumns[status].some(task => task.id === taskId)) return status; }
+    return null;
   };
-
+  const handleDragStart = (event) => { const { active } = event; const task = allTasks.find(t => t.id === active.id); setActiveTask(task); };
   const handleDragEnd = (event) => {
     setActiveTask(null);
     const { active, over } = event;
-
     if (!over || active.id === over.id) return;
-
-    const activeTask = tasks.find(t => t.id === active.id);
-    if (!activeTask) return;
-
-    const sourceContainer = activeTask.status;
-    const destinationContainer = over.data.current?.sortable?.containerId || over.id;
-    
-    if (sourceContainer !== destinationContainer) {
-      const updatedTask = { ...activeTask, status: destinationContainer };
-      setTasks(prevTasks =>
-        prevTasks.map(task => (task.id === active.id ? updatedTask : task))
-      );
-      api.put(`/api/tasks/${active.id}`, updatedTask).catch(() => setTasks(tasks));
-      return;
-    }
-
-    const overTask = tasks.find(t => t.id === over.id);
-    if (overTask) {
-        const activeIndex = tasks.findIndex(t => t.id === active.id);
-        const overIndex = tasks.findIndex(t => t.id === over.id);
-        
-        if (activeIndex !== overIndex) {
-            setTasks(currentTasks => arrayMove(currentTasks, activeIndex, overIndex));
-        }
+    const sourceContainer = findContainer(active.id);
+    const destContainer = findContainer(over.id) || over.id;
+    if (!sourceContainer || !destContainer || !taskColumns[sourceContainer] || !taskColumns[destContainer]) return;
+    if (sourceContainer === destContainer) {
+      setTaskColumns(prev => {
+        const columnTasks = prev[sourceContainer];
+        const oldIndex = columnTasks.findIndex(t => t.id === active.id);
+        const newIndex = columnTasks.findIndex(t => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return { ...prev, [sourceContainer]: arrayMove(columnTasks, oldIndex, newIndex) };
+      });
+    } else {
+      let movedTask;
+      const sourceTasks = [...taskColumns[sourceContainer]];
+      const activeIndex = sourceTasks.findIndex(t => t.id === active.id);
+      if (activeIndex > -1) { [movedTask] = sourceTasks.splice(activeIndex, 1); } else return;
+      const updatedTask = { ...movedTask, status: destContainer };
+      api.put(`/api/tasks/${active.id}`, { status: destContainer }).catch(() => { fetchData(); alert('Não foi possível mover a tarefa.'); });
+      setTaskColumns(prev => {
+        const destTasks = [...prev[destContainer]];
+        const overIndex = destTasks.findIndex(t => t.id === over.id);
+        if (overIndex !== -1) { destTasks.splice(overIndex, 0, updatedTask); } else { destTasks.push(updatedTask); }
+        return { ...prev, [sourceContainer]: sourceTasks, [destContainer]: destTasks };
+      });
     }
   };
 
@@ -139,57 +149,107 @@ export default function DashboardPage() {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
     })
   );
 
-  const doneTasks = tasks.filter(task => task.status === 'DONE');
-  const doingTasks = tasks.filter(task => task.status === 'DOING');
-  const plannedTasks = tasks.filter(task => task.status === 'PLANNED');
+  const renderDashboardContent = () => {
+    if (loading) {
+      return <div className="w-100 text-center mt-5"><Spinner animation="border" variant="light" /></div>;
+    }
+    if (isMobile) {
+      return (
+        <div className="d-flex flex-column gap-3 h-100">
+          <KanbanColumn title="Planejado" status="PLANNED" tasks={taskColumns.PLANNED} projects={projects} onEdit={handleOpenEditModal} isMobile />
+          <KanbanColumn title="Em progresso" status="DOING" tasks={taskColumns.DOING} projects={projects} onEdit={handleOpenEditModal} isMobile />
+          <KanbanColumn title="Feito" status="DONE" tasks={taskColumns.DONE} projects={projects} onEdit={handleOpenEditModal} isMobile />
+        </div>
+      );
+    }
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', height: '100%' }}>
+        <KanbanColumn title="Planejado" status="PLANNED" tasks={taskColumns.PLANNED} projects={projects} onEdit={handleOpenEditModal} />
+        <KanbanColumn title="Em progresso" status="DOING" tasks={taskColumns.DOING} projects={projects} onEdit={handleOpenEditModal} />
+        <KanbanColumn title="Feito" status="DONE" tasks={taskColumns.DONE} projects={projects} onEdit={handleOpenEditModal} />
+      </div>
+    );
+  };
 
   return (
-    <div className="d-flex vh-100 vw-100 position-relative" style={{ backgroundColor: '#0d1117', overflow: 'hidden' }}>
+    <div className="vh-100 vw-100 d-flex flex-column" style={{ backgroundColor: '#0d1117', overflow: 'hidden' }}>
       <ParticlesBackground variant="subtle" />
-      <Sidebar 
-        onProjectsClick={() => setShowProjectsModal(true)} 
-        onTaskTypesClick={() => setShowTaskTypesModal(true)}
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <AppHeader 
+          isMobile={isMobile}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onToggleMobileSidebar={() => setShowMobileSidebar(true)}
+          onNewTaskClick={handleOpenCreateModal}
+          currentUser={currentUser}
+          onLogoutClick={() => setShowLogoutConfirm(true)}
+        />
+      </div>
+      <div className="d-flex flex-grow-1" style={{ overflow: 'hidden', position: 'relative', zIndex: 1, minHeight: 0 }}>
+        {!isMobile && (
+          <Sidebar 
+            isMobile={isMobile}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            onProjectsClick={() => setShowProjectsModal(true)} 
+            onTaskTypesClick={() => setShowTaskTypesModal(true)}
+          />
+        )}
+        <main className="flex-grow-1 p-3 d-flex flex-column" style={{ overflow: 'hidden' }}>
+          <header className="mb-3 d-none d-lg-block">
+            <h1 className="fs-3 text-light">Monitor de Tarefas</h1>
+          </header>
+          <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            {renderDashboardContent()}
+            <DragOverlay>{activeTask ? <TaskCard task={activeTask} projects={projects} onEdit={() => {}} /> : null}</DragOverlay>
+          </DndContext>
+        </main>
+      </div>
+
+      <Offcanvas 
+        show={showMobileSidebar} 
+        onHide={() => setShowMobileSidebar(false)} 
+        style={{backgroundColor: '#0d1117', color: 'white', width: '260px'}}
+      >
+        <Offcanvas.Header closeButton closeVariant="white" />
+        <Offcanvas.Body className="p-0">
+          <Sidebar 
+            isMobile={isMobile}
+            isCollapsed={false}
+            onToggleCollapse={() => setShowMobileSidebar(false)}
+            onProjectsClick={() => {setShowProjectsModal(true); setShowMobileSidebar(false);}} 
+            onTaskTypesClick={() => {setShowTaskTypesModal(true); setShowMobileSidebar(false);}}
+          />
+        </Offcanvas.Body>
+      </Offcanvas>
+      
+      <TaskFormModal show={showTaskFormModal} handleClose={handleCloseTaskFormModal} onTaskCreated={handleTaskCreated} onTaskUpdated={handleTaskUpdated} taskToEdit={taskToEdit} onDelete={handleDeleteFromModal}/>
+      <ConfirmationModal 
+        show={showDeleteModal} 
+        handleClose={handleCloseDeleteModal} 
+        handleConfirm={handleConfirmDelete} 
+        title="Confirmar Exclusão" 
+        body="Você tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita." 
+        confirmButtonText="Confirmar Exclusão" 
       />
-      
-      <main className="flex-grow-1 p-4 d-flex flex-column" style={{ zIndex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-        <header className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
-            <div>
-                <h1 className="fs-3 text-light">Monitor de Tarefas</h1>
-            </div>
-            <div>
-                <Button variant="primary" className="me-2" onClick={handleOpenCreateModal}>+ Nova Tarefa</Button>
-                <Button variant="outline-secondary" onClick={handleLogout}>Sair</Button>
-            </div>
-        </header>
-        
-        <DndContext 
-          sensors={sensors} 
-          collisionDetection={closestCorners} 
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-            <div className="d-flex gap-4 flex-grow-1" style={{ minWidth: '700px', overflowX: 'auto', paddingBottom: '1rem' }}>
-              {loading ? (
-                  <div className="w-100 text-center mt-5"><Spinner animation="border" variant="light" /></div>
-              ) : (
-                  <>
-                      <KanbanColumn title="Planejado" status="PLANNED" tasks={plannedTasks} projects={projects} onEdit={handleOpenEditModal} onDelete={handleOpenDeleteModal} />
-                      <KanbanColumn title="Em progresso" status="DOING" tasks={doingTasks} projects={projects} onEdit={handleOpenEditModal} onDelete={handleOpenDeleteModal} />
-                      <KanbanColumn title="Feito" status="DONE" tasks={doneTasks} projects={projects} onEdit={handleOpenEditModal} onDelete={handleOpenDeleteModal} />
-                  </>
-              )}
-            </div>
-            <DragOverlay>
-              {activeTask ? <TaskCard task={activeTask} projects={projects} /> : null} 
-            </DragOverlay>
-        </DndContext>
-      </main>
-      
-      <TaskFormModal show={showTaskFormModal} handleClose={handleCloseTaskFormModal} onTaskCreated={handleTaskCreated} onTaskUpdated={handleTaskUpdated} taskToEdit={taskToEdit} />
-      <ConfirmationModal show={showDeleteModal} handleClose={handleCloseDeleteModal} handleConfirm={handleConfirmDelete} title="Confirmar Exclusão" body="Você tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita." />
+      <ConfirmationModal 
+        show={showLogoutConfirm} 
+        handleClose={() => setShowLogoutConfirm(false)} 
+        handleConfirm={handleLogout} 
+        title="Confirmar Saída" 
+        body="Você tem certeza que deseja sair da sua conta?" 
+        confirmButtonText="Sair" 
+        confirmButtonVariant="primary" 
+      />
       <ProjectsModal show={showProjectsModal} handleClose={() => setShowProjectsModal(false)} />
       <TaskTypesModal show={showTaskTypesModal} handleClose={() => setShowTaskTypesModal(false)} />
     </div>

@@ -91,6 +91,22 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+app.get('/api/user/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { id: true, email: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado.' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Erro interno ao buscar dados do usuário.' });
+  }
+});
+
 app.get('/api/tasks', authenticateToken, async (req, res) => {
   const tasks = await prisma.task.findMany({
     where: { userId: req.userId },
@@ -130,9 +146,18 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
   const { title, description, status, projectId, taskTypeId } = req.body;
   const userId = req.userId;
 
-  if (!title || !status) {
-    return res.status(400).json({ message: 'Título e status são obrigatórios.' });
+  const dataToUpdate = {};
+  if (title !== undefined) dataToUpdate.title = title;
+  if (description !== undefined) dataToUpdate.description = description;
+  if (status !== undefined) dataToUpdate.status = status;
+  if (projectId !== undefined) dataToUpdate.projectId = projectId;
+  if (taskTypeId !== undefined) dataToUpdate.taskTypeId = taskTypeId;
+
+  if (dataToUpdate.title === '') {
+    return res.status(400).json({ message: 'O título não pode ser vazio.' });
   }
+
+  dataToUpdate.updatedAt = new Date();
 
   try {
     const updatedTask = await prisma.task.update({
@@ -140,7 +165,7 @@ app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
         id: parseInt(id),
         userId: userId 
       },
-      data: { title, description, status, updatedAt: new Date(), projectId, taskTypeId }
+      data: dataToUpdate
     });
     res.json(updatedTask);
   } catch (error) {
@@ -238,6 +263,60 @@ app.post('/api/task-types', authenticateToken, async (req, res) => {
     data: { name, projectId }
   });
   res.status(201).json(newType);
+});
+
+app.put('/api/task-types/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { name, projectId } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ message: 'O nome é obrigatório.' });
+  }
+
+  try {
+    const project = await prisma.project.findFirst({
+        where: { id: projectId, userId: req.userId }
+    });
+
+    if (!project) {
+        return res.status(404).json({ message: 'Projeto não encontrado ou não pertence ao usuário.' });
+    }
+
+    const updatedTaskType = await prisma.taskType.update({
+      where: { id: parseInt(id) },
+      data: { name },
+    });
+    res.json(updatedTaskType);
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Tipo de tarefa não encontrado.' });
+    }
+    res.status(500).json({ message: 'Erro ao atualizar o tipo de tarefa.' });
+  }
+});
+
+app.delete('/api/task-types/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const taskTypeToDelete = await prisma.taskType.findFirst({
+        where: { id: parseInt(id), project: { userId: req.userId } }
+    });
+
+    if (!taskTypeToDelete) {
+        return res.status(404).json({ message: 'Tipo de tarefa não encontrado ou não pertence ao usuário.' });
+    }
+
+    await prisma.taskType.delete({
+      where: { id: parseInt(id) },
+    });
+    res.status(204).send();
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Tipo de tarefa não encontrado.' });
+    }
+    res.status(500).json({ message: 'Erro ao deletar o tipo de tarefa.' });
+  }
 });
 
 // Healthcheck
