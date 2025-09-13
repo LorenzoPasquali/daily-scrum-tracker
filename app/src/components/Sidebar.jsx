@@ -1,22 +1,36 @@
 import React, { useContext } from 'react';
-import { Nav, Accordion, useAccordionButton, AccordionContext } from 'react-bootstrap';
+import { Nav, Accordion, useAccordionButton, AccordionContext, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { HouseDoorFill, CollectionFill, BarChartFill, Folder, TagFill, ChevronDown, ChevronUp } from 'react-bootstrap-icons';
 
-function CustomToggle({ children, eventKey }) {
+function CustomToggle({ children, eventKey, isCollapsed, onToggleCollapse }) {
   const { activeEventKey } = useContext(AccordionContext);
   const decoratedOnClick = useAccordionButton(eventKey);
   const isCurrentEventKey = activeEventKey === eventKey;
-  const linkStyle = { color: '#8b949e', textDecoration: 'none' };
-  const linkHoverStyle = (e) => { e.target.style.backgroundColor = '#1c2128'; e.target.style.color = '#c9d1d9'; };
-  const linkLeaveStyle = (e) => { e.target.style.backgroundColor = 'transparent'; e.target.style.color = '#8b949e'; };
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    if (isCollapsed) {
+      onToggleCollapse();
+    }
+    decoratedOnClick();
+  };
+
+  if (isCollapsed) {
+    return (
+      <div 
+        onClick={handleClick} 
+        role="button" 
+        className="p-3 d-flex justify-content-center align-items-center text-secondary"
+      >
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div
-      style={linkStyle}
-      className="d-flex justify-content-between align-items-center p-3"
-      onClick={decoratedOnClick}
-      onMouseEnter={linkHoverStyle}
-      onMouseLeave={linkLeaveStyle}
+      className="d-flex justify-content-between align-items-center p-3 text-secondary"
+      onClick={handleClick}
       role="button"
     >
       <div className="d-flex align-items-center">
@@ -27,49 +41,66 @@ function CustomToggle({ children, eventKey }) {
   );
 }
 
-export default function Sidebar({ onProjectsClick, onTaskTypesClick  }) {
+export default function Sidebar({ onProjectsClick, onTaskTypesClick, isCollapsed, onToggleCollapse, isMobile }) {
   const sidebarStyle = {
-    width: '260px',
-    backgroundColor: 'rgba(22, 27, 34, 0.6)',
-    backdropFilter: 'blur(10px)',
+    width: isCollapsed ? '60px' : '260px',
+    backgroundColor: '#0d1117',
     zIndex: 2,
+    transition: 'width 0.3s ease-in-out',
+    overflowX: 'hidden',
   };
+
   const activeLinkStyle = {
     borderLeft: '3px solid #a78bfa',
     backgroundColor: '#1c2128',
   };
 
   return (
-    <div style={sidebarStyle} className="vh-100 d-flex flex-column flex-shrink-0 border-end border-secondary">
-      <div className="p-3">
-        <h2 className="fs-4 text-light">Daily Tracker</h2>
-      </div>
-      <hr className="text-secondary mt-0" />
-      
-      <Nav className="flex-column nav-pills">
-        <Nav.Link href="#" className="text-light d-flex align-items-center p-3" style={activeLinkStyle}>
-          <HouseDoorFill className="me-2" /> Monitor de Tarefas
+    <div style={sidebarStyle} className={`h-100 d-flex flex-column flex-shrink-0 ${!isMobile ? 'border-end border-secondary' : ''}`}>
+      <Nav className="flex-column nav-pills flex-grow-1" style={{ whiteSpace: 'nowrap', paddingTop: '1rem' }}>
+        <Nav.Link 
+          href="#" 
+          className="text-light d-flex align-items-center p-3" 
+          style={activeLinkStyle}
+          onClick={isCollapsed ? onToggleCollapse : null}
+        >
+          <HouseDoorFill className={`flex-shrink-0 ${!isCollapsed ? 'me-2' : ''}`} /> 
+          {!isCollapsed && "Monitor de Tarefas"}
         </Nav.Link>
 
         <Accordion>
-            <CustomToggle eventKey="0">
-              <CollectionFill className="me-2" /> Cadastros
+            <CustomToggle eventKey="0" isCollapsed={isCollapsed} onToggleCollapse={onToggleCollapse}>
+              <CollectionFill className={`flex-shrink-0 ${!isCollapsed ? 'me-2' : ''}`} /> 
+              {!isCollapsed && "Cadastros"}
             </CustomToggle>
-            <Accordion.Collapse eventKey="0">
-              <div>
-                <Nav.Link onClick={onProjectsClick} className="text-secondary d-flex align-items-center py-2 ps-5" role="button">
-                  <Folder className="me-2" /> Projetos
-                </Nav.Link>
-                <Nav.Link onClick={onTaskTypesClick} className="text-secondary d-flex align-items-center py-2 ps-5" role="button">
-                  <TagFill className="me-2" /> Tipos de Tarefa
-                </Nav.Link>
-              </div>
-            </Accordion.Collapse>
+            {!isCollapsed && (
+              <Accordion.Collapse eventKey="0">
+                <div>
+                  <Nav.Link onClick={onProjectsClick} className="text-secondary d-flex align-items-center py-2 ps-5" role="button">
+                    <Folder className="me-2" /> Projetos
+                  </Nav.Link>
+                  <Nav.Link onClick={onTaskTypesClick} className="text-secondary d-flex align-items-center py-2 ps-5" role="button">
+                    <TagFill className="me-2" /> Tipos de Tarefa
+                  </Nav.Link>
+                </div>
+              </Accordion.Collapse>
+            )}
         </Accordion>
 
-        <Nav.Link href="#" className="text-secondary d-flex align-items-center p-3">
-          <BarChartFill className="me-2" /> Relatórios
-        </Nav.Link>
+        <OverlayTrigger
+          placement="right"
+          delay={{ show: 250, hide: 400 }}
+          overlay={
+            <Tooltip id="tooltip-reports">
+              Módulo de Relatórios ainda não implementado
+            </Tooltip>
+          }
+        >
+          <div className="nav-link text-secondary d-flex align-items-center p-3 nav-link-no-action">
+            <BarChartFill className={`flex-shrink-0 ${!isCollapsed ? 'me-2' : ''}`} /> 
+            {!isCollapsed && "Relatórios"}
+          </div>
+        </OverlayTrigger>
       </Nav>
     </div>
   );

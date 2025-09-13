@@ -62,7 +62,6 @@ export default function RegisterPage() {
     <div style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
       <ParticlesBackground variant="home" />
 
-      {/* tela mobile */}
       <div className="d-block d-md-none">
         <Container fluid className="d-flex flex-column align-items-center justify-content-center text-light" style={{ minHeight: '100vh', position: 'relative', zIndex: 1 }}>
           <h1 className="text-center mb-4 fs-3 fw-normal">Criar conta no DailyTracker</h1>
@@ -108,7 +107,6 @@ export default function RegisterPage() {
         </Container>
       </div>
 
-      {/* Layout original com duas colunas, visível apenas em telas médias ou maiores */}
       <div className="d-none d-md-flex" style={{ position: 'relative', zIndex: 1, height: '100vh', width: '100%' }}>
         <div className="flex-column text-start text-light" style={{ flex: 1, padding: '3rem', justifyContent: 'flex-center', paddingTop: '10rem' }}>
           <h1 className="fw-bold fs-2 mb-2">Crie sua conta de graça</h1>

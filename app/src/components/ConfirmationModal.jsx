@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 
-export default function ConfirmationModal({ show, handleClose, handleConfirm, title, body }) {
+export default function ConfirmationModal({ show, handleClose, handleConfirm, title, body, confirmButtonText, confirmButtonVariant }) {
   const modalBodyStyle = {
     backgroundColor: '#0d1117',
     color: '#c9d1d9'
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (show && event.key === 'Enter') {
+        event.preventDefault();
+        handleConfirm();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [show, handleConfirm]);
 
   return (
     <Modal show={show} onHide={handleClose} centered>
@@ -19,8 +33,8 @@ export default function ConfirmationModal({ show, handleClose, handleConfirm, ti
         <Button variant="secondary" onClick={handleClose}>
           Cancelar
         </Button>
-        <Button variant="danger" onClick={handleConfirm}>
-          Confirmar Exclusão
+        <Button variant={confirmButtonVariant || 'danger'} onClick={handleConfirm} autoFocus>
+          {confirmButtonText || 'Confirmar'}
         </Button>
       </Modal.Footer>
     </Modal>

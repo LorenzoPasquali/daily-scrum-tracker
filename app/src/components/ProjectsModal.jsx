@@ -88,6 +88,21 @@ export default function ProjectsModal({ show, handleClose }) {
         setProjectToDelete(null);
     }
   };
+  
+  const handleCreateSubmit = (e) => {
+    e.preventDefault();
+    handleCreateProject();
+  }
+
+  const handleEditKeyDown = (e, project) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEditing(project);
+    }
+    if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  }
 
   const modalStyle = { backgroundColor: '#0d1117', color: '#c9d1d9' };
   
@@ -125,19 +140,21 @@ export default function ProjectsModal({ show, handleClose }) {
         </Modal.Header>
         <Modal.Body style={modalStyle}>
           <h6 className="mb-3">Novo Projeto</h6>
-          <InputGroup className="mb-4">
-            <Form.Control
-              placeholder="Nome do novo projeto"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              style={darkInputStyle}
-              className="custom-form-control"
-            />
-            <div className="d-flex align-items-center px-2" style={{backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '0 5px 5px 0'}}>
-              <ColorPicker currentColor={newProjectColor} onColorSelect={setNewProjectColor} />
-            </div>
-            <Button variant="primary" onClick={handleCreateProject}>Criar</Button>
-          </InputGroup>
+          <Form onSubmit={handleCreateSubmit}>
+            <InputGroup className="mb-4">
+              <Form.Control
+                placeholder="Nome do novo projeto"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                style={darkInputStyle}
+                className="custom-form-control"
+              />
+              <div className="d-flex align-items-center px-2" style={{backgroundColor: '#21262d', border: '1px solid #30363d', borderRadius: '0 5px 5px 0'}}>
+                <ColorPicker currentColor={newProjectColor} onColorSelect={setNewProjectColor} />
+              </div>
+              <Button variant="primary" type="submit">Criar</Button>
+            </InputGroup>
+          </Form>
           <hr className="text-secondary" />
           <h6 className="mb-3 mt-4">Projetos Existentes</h6>
           {loading ? (
@@ -160,6 +177,7 @@ export default function ProjectsModal({ show, handleClose }) {
                           <Form.Control
                             value={editingProjectName}
                             onChange={(e) => setEditingProjectName(e.target.value)}
+                            onKeyDown={(e) => handleEditKeyDown(e, project)}
                             autoFocus
                             style={darkInputStyle}
                             className="custom-form-control"
