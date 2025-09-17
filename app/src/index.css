@@ -27,7 +27,7 @@ body {
 }
 .form-control:focus,
 .form-select:focus,
-.btn:focus,
+.btn:not(.no-focus-override):focus,
 .accordion-button:focus {
   border-color: #a78bfa !important;
   box-shadow: 0 0 0 0.1rem rgba(167, 139, 250, 0.25) !important;
