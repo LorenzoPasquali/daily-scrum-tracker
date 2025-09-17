@@ -38,7 +38,12 @@ export default function DashboardPage() {
 
   const isMobile = useMediaQuery('(max-width: 992px)');
   const navigate = useNavigate();
+  const [selectedProjectIds, setSelectedProjectIds] = useState([]);
   const allTasks = useMemo(() => Object.values(taskColumns).flat(), [taskColumns]);
+  const filteredTasks = useMemo(() => {
+    if (selectedProjectIds.length === 0) return allTasks;
+    return allTasks.filter(task => selectedProjectIds.includes(task.projectId));
+  }, [allTasks, selectedProjectIds]);
 
   const handleLogout = () => { localStorage.removeItem('authToken'); navigate('/'); };
 
@@ -158,24 +163,36 @@ export default function DashboardPage() {
     })
   );
 
+  const handleProjectToggle = (projectId) => {
+    setSelectedProjectIds(prev => 
+      prev.includes(projectId) 
+        ? prev.filter(id => id !== projectId) 
+        : [...prev, projectId]
+    );
+  };
+
   const renderDashboardContent = () => {
+    const filteredPlanned = filteredTasks.filter(t => t.status === 'PLANNED');
+    const filteredDoing = filteredTasks.filter(t => t.status === 'DOING');
+    const filteredDone = filteredTasks.filter(t => t.status === 'DONE');
+
     if (loading) {
       return <div className="w-100 text-center mt-5"><Spinner animation="border" variant="light" /></div>;
     }
     if (isMobile) {
       return (
         <div className="d-flex flex-column gap-3 h-100">
-          <KanbanColumn title="Planejado" status="PLANNED" tasks={taskColumns.PLANNED} projects={projects} onEdit={handleOpenEditModal} isMobile />
-          <KanbanColumn title="Em progresso" status="DOING" tasks={taskColumns.DOING} projects={projects} onEdit={handleOpenEditModal} isMobile />
-          <KanbanColumn title="Feito" status="DONE" tasks={taskColumns.DONE} projects={projects} onEdit={handleOpenEditModal} isMobile />
+          <KanbanColumn title="Planejado" status="PLANNED" tasks={filteredPlanned} projects={projects} onEdit={handleOpenEditModal} isMobile />
+          <KanbanColumn title="Em progresso" status="DOING" tasks={filteredDoing} projects={projects} onEdit={handleOpenEditModal} isMobile />
+          <KanbanColumn title="Feito" status="DONE" tasks={filteredDone} projects={projects} onEdit={handleOpenEditModal} isMobile />
         </div>
       );
     }
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', height: '100%' }}>
-        <KanbanColumn title="Planejado" status="PLANNED" tasks={taskColumns.PLANNED} projects={projects} onEdit={handleOpenEditModal} />
-        <KanbanColumn title="Em progresso" status="DOING" tasks={taskColumns.DOING} projects={projects} onEdit={handleOpenEditModal} />
-        <KanbanColumn title="Feito" status="DONE" tasks={taskColumns.DONE} projects={projects} onEdit={handleOpenEditModal} />
+        <KanbanColumn title="Planejado" status="PLANNED" tasks={filteredPlanned} projects={projects} onEdit={handleOpenEditModal} />
+        <KanbanColumn title="Em progresso" status="DOING" tasks={filteredDoing} projects={projects} onEdit={handleOpenEditModal} />
+        <KanbanColumn title="Feito" status="DONE" tasks={filteredDone} projects={projects} onEdit={handleOpenEditModal} />
       </div>
     );
   };
@@ -205,8 +222,62 @@ export default function DashboardPage() {
           />
         )}
         <main className="flex-grow-1 p-3 d-flex flex-column" style={{ overflow: 'hidden' }}>
-          <header className="mb-3 d-none d-lg-block">
-            <h1 className="fs-3 text-light">Monitor de Tarefas</h1>
+          <header className="mb-3 d-none d-lg-flex justify-content-between align-items-center">
+            <h1 className="fs-3 text-light mb-0">Monitor de Tarefas</h1>
+            <div className="d-flex align-items-center gap-2">
+                {projects.map(project => {
+                    const isSelected = selectedProjectIds.includes(project.id);
+                    const anyFilterActive = selectedProjectIds.length > 0;
+
+                    let buttonStyle = {
+                        borderRadius: '16px',
+                        border: '1px solid transparent',
+                        transition: 'all 0.2s ease-in-out',
+                        color: '#fff',
+                        outline: 'none',
+                        boxShadow: 'none',
+                    };
+
+                    if (anyFilterActive && !isSelected) {
+                        buttonStyle = {
+                            ...buttonStyle,
+                            textDecoration: 'line-through',
+                            opacity: 0.5,
+                            backgroundColor: 'rgba(80, 80, 80, 0.2)',
+                        };
+                    } else {
+                        buttonStyle = {
+                            ...buttonStyle,
+                            backgroundColor: `${project.color}40`,
+                            backdropFilter: 'blur(8px)',
+                            border: `1px solid ${project.color}80`,
+                        };
+
+                        if (isSelected) {
+                            buttonStyle = {
+                                ...buttonStyle,
+                                fontWeight: 'bold',
+                                backgroundColor: `${project.color}70`,
+                                boxShadow: `0 0 10px ${project.color}B3`,
+                                border: `1px solid ${project.color}CC`,
+                            };
+                        }
+                    }
+
+                    return (
+                        <Button 
+                            key={project.id} 
+                            size="sm"
+                            variant="dark"
+                            className="no-focus-override"
+                            style={buttonStyle}
+                            onClick={() => handleProjectToggle(project.id)}
+                        >
+                            {project.name}
+                        </Button>
+                    );
+                })}
+            </div>
           </header>
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             {renderDashboardContent()}
