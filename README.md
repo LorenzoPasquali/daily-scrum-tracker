@@ -1,6 +1,6 @@
-# Daily Scrum Tracker  Kanban
+# Daily Tracker 
 
-https://daily-scrum-tracker.vercel.app/
+https://dailytracker.com.br/
 
 Um monitor de tarefas diárias (daily scrum) no estilo Kanban, projetado para ajudar desenvolvedores e equipes a organizar suas atividades de forma simples e visual. A aplicação permite o gerenciamento de tarefas através de colunas de status, com funcionalidades de arrastar e soltar e uma interface responsiva para desktop e mobile.
 
